@@ -115,6 +115,14 @@ export default function Dashboard() {
       <DashboardHeader 
         title="Security Operations Dashboard"
         subtitle="Real-time monitoring and alerts"
+        // For mobile use
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-3 px-6 mt-4">
+          <button
+            onClick={() => setSystemHealth(generateMockSystemHealth())}
+            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md text-sm sm:text-base font-semibold transition"
+            >
+        
+        </div>
       />
 
       <main className="max-w-7xl mx-auto p-6">
