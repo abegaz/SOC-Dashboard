@@ -8,8 +8,8 @@ import { useState, useEffect } from 'react'
 import DashboardHeader from './components/Dashboard/DashboardHeader'
 import MetricsGrid from './components/Dashboard/MetricsGrid'
 import SystemHealthPanel from './components/Dashboard/SystemHealthPanel'
-import AlertFeed, {type Alert } from './components/Dashboard/AlertFeed'
-import AlertItem from './components/Dashboard/AlertItem'
+import AlertFeed, { Alert } from './components/Dashboard/AlertFeed'
+
 
 // ============================================
 // MOCK DATA GENERATOR
@@ -22,21 +22,25 @@ function generateMockSystemHealth() {
     network: Math.random() > 0.2 ? 'healthy' : 'degraded'
   }
 }
+
 function generateMockAlert(id: number): Alert {
-  const types: Alert['type'][] = ['critical', 'warning', 'info', 'success']
+  const severities = ['info', 'warning', 'critical', 'success'] as const
   const messages = [
-    'CPU usage exceeded 90%',
-    'Memory usage exceeded 80%',
-    'Disk space below 20%',
-    'New login from unknown IP',
-    'Software update available',
-    'Backup completed successfully'
+    'New login from unknown device',  
+    'Multiple failed login attempts detected',
+    'Unusual outbound traffic detected',
+    'Malware signature detected on endpoint',
+    'Suspicious file download activity',
+    'Potential data exfiltration activity',
+    'New software installation detected',
   ]
-  const type = types[Math.floor(Math.random() * types.length)]
-  const message = messages[Math.floor(Math.random() * messages.length)]
-  const timestamp = new Date().toLocaleTimeString()
-  return { id, type, message, timestamp }
-}
+  return {
+    id,
+    type : severities[Math.floor(Math.random() * severities.length)] as 'info' | 'warning' | 'critical' | 'success',
+    timestamp: new Date().toISOString(),
+    message: messages[Math.floor(Math.random() * messages.length)]
+  }
+} 
 
 // ============================================
 // MAIN DASHBOARD PAGE
@@ -55,9 +59,6 @@ export default function Dashboard() {
   // ============================================
   // This will hold our array of alerts
   const [alerts, setAlerts] = useState<Alert[]>([])
-  
-  // Counter for unique alert IDs
-  const [alertIdCounter, setAlertIdCounter] = useState(1)
 
   // ============================================
   // EFFECT: Update system health every 3 seconds
@@ -78,30 +79,35 @@ export default function Dashboard() {
   // EFFECT: Add new alert every 5 seconds
   // ============================================
   useEffect(() => {
-    // Add initial alert
-    const initialAlert = generateMockAlert(alertIdCounter)
+    // Add initial alert immediately
+    const initialAlert = generateMockAlert(1)
     setAlerts([initialAlert])
-    setAlertIdCounter(alertIdCounter + 1)
+    
+    // Keep track of the next ID to use
+    let nextId = 2
     
     // Add new alert every 5 seconds
     const alertInterval = setInterval(() => {
-      setAlertIdCounter((prevId) => {
-        const newAlert = generateMockAlert(prevId)
-        
-        // Add new alert to the BEGINNING of the array (newest first)
-        // Keep only the last 8 alerts
-        setAlerts((prevAlerts) => {
-          const updatedAlerts = [newAlert, ...prevAlerts]
-          return updatedAlerts.slice(0, 5) // Keep only first 5
-        })
-        
-        console.log('New alert generated:', newAlert)
-        return prevId + 1
+      // Generate new alert with current ID
+      const newAlert = generateMockAlert(nextId)
+      
+      // Update alerts: add new one at beginning, keep only first 8
+      setAlerts((prevAlerts) => {
+        const updatedAlerts = [newAlert, ...prevAlerts]
+        return updatedAlerts.slice(0, 8) // Keep only first 8
       })
-    }, 10000) // 10000ms = 10 seconds
+      
+      console.log('New alert generated:', newAlert)
+      
+      // Increment ID for next alert
+      nextId = nextId + 1
+    }, 5000) // 5000ms = 5 seconds
     
-    // Cleanup
-    return () => clearInterval(alertInterval)
+    // Cleanup function: stop the interval when component unmounts
+    return () => {
+      clearInterval(alertInterval)
+      console.log('Alert interval cleaned up')
+    }
   }, []) // Empty array = run once on mount
 
   return (
