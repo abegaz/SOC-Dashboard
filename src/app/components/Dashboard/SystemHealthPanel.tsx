@@ -1,6 +1,8 @@
 // src/components/Dashboard/SystemHealthPanel.tsx
+'use client'
 
 import ProgressBar from '../ui/ProgressBar'
+import { useTheme } from '@/contexts/ThemeContext'
 
 // ============================================
 // PROPS INTERFACE
@@ -16,6 +18,7 @@ interface SystemHealthPanelProps {
 // SYSTEM HEALTH PANEL COMPONENT
 // ============================================
 export default function SystemHealthPanel({ cpu, memory, disk, network }: SystemHealthPanelProps) {
+  const { isDark } = useTheme()
   
   // Helper function to style the network status badge
   const getStatusBadge = (status: string) => {
@@ -26,22 +29,28 @@ export default function SystemHealthPanel({ cpu, memory, disk, network }: System
   }
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-      <h2 className="text-xl font-bold mb-4">System Health Status</h2>
+    <div className={`rounded-lg p-6 border transition-colors ${
+      isDark 
+        ? 'bg-gray-800 border-gray-700' 
+        : 'bg-white border-gray-200'
+    }`}>
+      <h2 className={`text-xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+        System Health Status
+      </h2>
       
       {/* Health Bars */}
       <div className="space-y-4">
-        {/* 
-          Using our reusable ProgressBar component!
-          Notice how clean and readable this is compared to repeating the code 3 times
-        */}
         <ProgressBar label="CPU" value={cpu} />
         <ProgressBar label="Memory" value={memory} />
         <ProgressBar label="Disk" value={disk} />
 
         {/* Network Status */}
-        <div className="flex justify-between items-center pt-4 border-t border-gray-700">
-          <span className="text-sm text-gray-400">Network Status</span>
+        <div className={`flex justify-between items-center pt-4 border-t ${
+          isDark ? 'border-gray-700' : 'border-gray-200'
+        }`}>
+          <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            Network Status
+          </span>
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(network)}`}>
             {network === 'healthy' ? '● Healthy' : '● Degraded'}
           </span>
