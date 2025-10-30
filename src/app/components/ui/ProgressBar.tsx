@@ -1,25 +1,27 @@
 // src/components/ui/ProgressBar.tsx
+'use client'
+
+import { useTheme } from '@/contexts/ThemeContext'
 
 // ============================================
 // PROPS INTERFACE
 // ============================================
 interface ProgressBarProps {
-  label: string      // e.g., "CPU"
-  value: number      // e.g., 75
-  color?: string     // Optional: defaults to dynamic color
+  label: string
+  value: number
+  color?: string
 }
 
 // ============================================
 // PROGRESS BAR COMPONENT
 // ============================================
-// A reusable progress bar that changes color based on value
 export default function ProgressBar({ label, value, color }: ProgressBarProps) {
+  const { isDark } = useTheme()
   
   // Dynamic color selection based on value (if no color provided)
   const getBarColor = () => {
-    if (color) return color // Use provided color if given
+    if (color) return color
     
-    // Otherwise, use value-based coloring
     if (value < 50) return 'bg-green-500'
     if (value < 80) return 'bg-yellow-500'
     return 'bg-red-500'
@@ -29,13 +31,13 @@ export default function ProgressBar({ label, value, color }: ProgressBarProps) {
     <div>
       {/* Label and Value */}
       <div className="flex justify-between mb-2">
-        <span className="text-sm text-gray-400">{label}</span>
-        <span className="text-sm font-medium">{value}%</span>
+        <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{label}</span>
+        <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{value}%</span>
       </div>
       
-      {/* Progress Bar Track (gray background) */}
-      <div className="w-full bg-gray-700 rounded-full h-3">
-        {/* Progress Bar Fill (colored, animated) */}
+      {/* Progress Bar Track */}
+      <div className={`w-full rounded-full h-3 ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+        {/* Progress Bar Fill */}
         <div 
           className={`${getBarColor()} h-3 rounded-full transition-all duration-500`}
           style={{ width: `${value}%` }}

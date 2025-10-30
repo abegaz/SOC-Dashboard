@@ -9,8 +9,7 @@ import DashboardHeader from './components/Dashboard/DashboardHeader'
 import MetricsGrid from './components/Dashboard/MetricsGrid'
 import SystemHealthPanel from './components/Dashboard/SystemHealthPanel'
 import AlertFeed, { Alert } from './components/Dashboard/AlertFeed'
-
-
+import { useTheme } from '../contexts/ThemeContext'
 // ============================================
 // MOCK DATA GENERATOR
 // ============================================
@@ -46,6 +45,8 @@ function generateMockAlert(id: number): Alert {
 // MAIN DASHBOARD PAGE
 // ============================================
 export default function Dashboard() {
+  const { isDark } = useTheme()
+  
   // State for system health metrics
   const [systemHealth, setSystemHealth] = useState({
     cpu: 0,
@@ -111,7 +112,9 @@ export default function Dashboard() {
   }, []) // Empty array = run once on mount
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className={`min-h-screen transition-colors ${
+      isDark ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
+    }`}>
       <DashboardHeader 
         title="Security Operations Dashboard"
         subtitle="Real-time monitoring and alerts"
@@ -140,8 +143,12 @@ export default function Dashboard() {
         </div>
 
         {/* Info Box */}
-        <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
-          <p className="text-blue-300 text-sm">
+        <div className={`border rounded-lg p-4 transition-colors ${
+          isDark 
+            ? 'bg-blue-900/20 border-blue-500/30' 
+            : 'bg-blue-50 border-blue-200'
+        }`}>
+          <p className={`text-sm ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
             <strong>🔄 Live Updates:</strong> System metrics update every 3 seconds. 
             New security alerts appear every 5 seconds. Open your browser console (F12) to see update logs.
           </p>

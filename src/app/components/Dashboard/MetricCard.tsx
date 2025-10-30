@@ -1,15 +1,16 @@
 // src/components/Dashboard/MetricCard.tsx
+'use client'
+
+import { useTheme } from '@/contexts/ThemeContext'
 
 // ============================================
 // PROPS INTERFACE
 // ============================================
-// This defines what data the component needs to work
-// Think of it like a contract: "Give me these things and I'll render correctly"
 interface MetricCardProps {
-  title: string           // e.g., "CPU Usage"
-  value: number          // e.g., 75
-  icon: React.ReactNode  // The SVG icon
-  color: string          // e.g., "blue", "green", "purple"
+  title: string
+  value: number
+  icon: React.ReactNode
+  color: string
 }
 
 // ============================================
