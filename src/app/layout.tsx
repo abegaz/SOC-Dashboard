@@ -2,6 +2,9 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { ThemeProvider } from '../contexts/ThemeContext'
+import { AuthProvider } from '../contexts/AuthContext'
+// Initialize database on server startup
+import '../lib/init-db'
 
 export const metadata: Metadata = {
   title: 'Security Operations Dashboard',
@@ -16,12 +19,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {/* 
-          ThemeProvider wraps everything
-          Now ALL components can access theme!
-        */}
         <ThemeProvider>
-          {children}
+          <AuthProvider>
+            {children}
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
