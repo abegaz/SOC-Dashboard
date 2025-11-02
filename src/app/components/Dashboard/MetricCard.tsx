@@ -16,9 +16,9 @@ interface MetricCardProps {
 // ============================================
 // METRIC CARD COMPONENT
 // ============================================
-// This is a "presentational component" - it just displays data
-// It doesn't manage any state or logic, just receives props and renders
 export default function MetricCard({ title, value, icon, color }: MetricCardProps) {
+  // ACCESS THE THEME! This was missing!
+  const { isDark } = useTheme()
   
   // Helper function to determine status based on value
   const getStatus = () => {
@@ -41,14 +41,20 @@ export default function MetricCard({ title, value, icon, color }: MetricCardProp
   const selectedColor = colorClasses[color as keyof typeof colorClasses] || colorClasses.blue
 
   return (
-    <div className={`bg-gray-800 rounded-lg p-6 border border-gray-700 ${selectedColor.split(' ')[0]} transition-colors`}>
+    <div className={`rounded-lg p-6 border transition-colors ${selectedColor.split(' ')[0]} ${
+      isDark 
+        ? 'bg-gray-800 border-gray-700' 
+        : 'bg-white border-gray-200'
+    }`}>
       <div className="flex items-center justify-between">
         <div>
           {/* Title of the metric */}
-          <p className="text-gray-400 text-sm">{title}</p>
+          <p className={isDark ? 'text-gray-400 text-sm' : 'text-gray-600 text-sm'}>{title}</p>
           
           {/* Value with percentage */}
-          <p className="text-3xl font-bold mt-2">{value}%</p>
+          <p className={`text-3xl font-bold mt-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            {value}%
+          </p>
           
           {/* Status indicator */}
           <p className="text-xs mt-2">
