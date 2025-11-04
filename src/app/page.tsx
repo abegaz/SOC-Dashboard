@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useTheme } from '../contexts/ThemeContext'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -165,9 +166,13 @@ export default function LoginPage() {
                 Remember me
               </span>
             </label>
-            <a href="#" className="text-sm text-blue-500 hover:text-blue-400">
+            <button 
+              type="button"
+              onClick={() => alert('Password reset feature coming soon! For now, contact admin@socdashboard.com')}
+              className="text-sm text-blue-500 hover:text-blue-400"
+            >
               Forgot password?
-            </a>
+            </button>
           </div>
 
           {/* Submit Button */}
@@ -212,9 +217,9 @@ export default function LoginPage() {
         {/* Sign Up Link */}
         <p className={`text-center mt-6 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
           Don't have an account?{' '}
-          <a href="#" className="text-blue-500 hover:text-blue-400 font-medium">
+          <Link href="/register" className="text-blue-500 hover:text-blue-400 font-medium">
             Sign up
-          </a>
+          </Link>
         </p>
       </div>
     </div>
