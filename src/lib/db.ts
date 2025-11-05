@@ -36,6 +36,24 @@ export function initializeDatabase() {
   db.exec(createUsersTable)
   console.log('✅ Users table ready')
   
+  // Create user_preferences table
+  const createPreferencesTable = `
+    CREATE TABLE IF NOT EXISTS user_preferences (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      dashboard_layout TEXT,
+      visible_widgets TEXT,
+      theme TEXT DEFAULT 'dark',
+      refresh_interval INTEGER DEFAULT 3000,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(user_id)
+    )
+  `
+  
+  db.exec(createPreferencesTable)
+  console.log('✅ User preferences table ready')
+  
   // Check if we have any users
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number }
   
@@ -187,6 +205,96 @@ export function deleteUser(id: number): boolean {
     return result.changes > 0
   } catch (error) {
     console.error('❌ Error deleting user:', error)
+    return false
+  }
+}
+
+// ============================================
+// USER PREFERENCES INTERFACE
+// ============================================
+export interface UserPreferences {
+  id?: number
+  user_id: number
+  dashboard_layout?: string
+  visible_widgets?: string
+  theme: string
+  refresh_interval: number
+  updated_at?: string
+}
+
+// ============================================
+// GET USER PREFERENCES
+// ============================================
+export function getUserPreferences(userId: number): UserPreferences | null {
+  try {
+    const stmt = db.prepare('SELECT * FROM user_preferences WHERE user_id = ?')
+    const prefs = stmt.get(userId) as UserPreferences | undefined
+    
+    if (!prefs) {
+      // Return default preferences if none exist
+      return {
+        user_id: userId,
+        theme: 'dark',
+        refresh_interval: 3000,
+        visible_widgets: JSON.stringify(['metrics', 'systemHealth', 'alerts']),
+        dashboard_layout: JSON.stringify([])
+      }
+    }
+    
+    return prefs
+  } catch (error) {
+    console.error('❌ Error getting preferences:', error)
+    return null
+  }
+}
+
+// ============================================
+// SAVE USER PREFERENCES
+// ============================================
+export function saveUserPreferences(prefs: UserPreferences): boolean {
+  try {
+    // Check if preferences exist
+    const existing = getUserPreferences(prefs.user_id)
+    
+    if (existing && existing.id) {
+      // Update existing preferences
+      const stmt = db.prepare(`
+        UPDATE user_preferences 
+        SET dashboard_layout = ?,
+            visible_widgets = ?,
+            theme = ?,
+            refresh_interval = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ?
+      `)
+      
+      stmt.run(
+        prefs.dashboard_layout || null,
+        prefs.visible_widgets || null,
+        prefs.theme,
+        prefs.refresh_interval,
+        prefs.user_id
+      )
+    } else {
+      // Insert new preferences
+      const stmt = db.prepare(`
+        INSERT INTO user_preferences (user_id, dashboard_layout, visible_widgets, theme, refresh_interval)
+        VALUES (?, ?, ?, ?, ?)
+      `)
+      
+      stmt.run(
+        prefs.user_id,
+        prefs.dashboard_layout || null,
+        prefs.visible_widgets || null,
+        prefs.theme,
+        prefs.refresh_interval
+      )
+    }
+    
+    console.log('✅ Preferences saved for user:', prefs.user_id)
+    return true
+  } catch (error) {
+    console.error('❌ Error saving preferences:', error)
     return false
   }
 }

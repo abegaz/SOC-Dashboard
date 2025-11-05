@@ -49,6 +49,29 @@ function generateMockAlert(id: number): Alert {
 // ============================================
 export default function Dashboard() {
   const { isDark } = useTheme()
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth()
+  const router = useRouter()
+  
+  // ============================================
+  // PROTECTED ROUTE - CHECK AUTHENTICATION
+  // ============================================
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      console.log('Not authenticated, redirecting to login')
+      router.push('/')
+    }
+  }, [isAuthenticated, authLoading, router])
+  
+  // ============================================
+  // USER PREFERENCES STATE
+  // ============================================
+  const [preferences, setPreferences] = useState({
+    showMetrics: true,
+    showSystemHealth: true,
+    showAlerts: true,
+    refreshInterval: 3000
+  })
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false)
   
   // State for system health metrics
   const [systemHealth, setSystemHealth] = useState({
@@ -65,24 +88,79 @@ export default function Dashboard() {
   const [alerts, setAlerts] = useState<Alert[]>([])
 
   // ============================================
-  // EFFECT: Update system health every 3 seconds
+  // LOAD USER PREFERENCES
   // ============================================
   useEffect(() => {
+    if (user) {
+      loadUserPreferences()
+    }
+  }, [user])
+
+  const loadUserPreferences = async () => {
+    if (!user) return
+    
+    try {
+      const response = await fetch(`/api/preferences?userId=${user.id}`)
+      const data = await response.json()
+      
+      if (data.preferences) {
+        const prefs = data.preferences
+        
+        // Parse visible widgets
+        let visibleWidgets = ['metrics', 'systemHealth', 'alerts']
+        if (prefs.visible_widgets) {
+          try {
+            visibleWidgets = JSON.parse(prefs.visible_widgets)
+          } catch (e) {
+            console.error('Error parsing visible_widgets:', e)
+          }
+        }
+        
+        setPreferences({
+          showMetrics: visibleWidgets.includes('metrics'),
+          showSystemHealth: visibleWidgets.includes('systemHealth'),
+          showAlerts: visibleWidgets.includes('alerts'),
+          refreshInterval: prefs.refresh_interval || 3000
+        })
+        
+        console.log('✅ Preferences loaded:', {
+          showMetrics: visibleWidgets.includes('metrics'),
+          showSystemHealth: visibleWidgets.includes('systemHealth'),
+          showAlerts: visibleWidgets.includes('alerts'),
+          refreshInterval: prefs.refresh_interval || 3000
+        })
+      }
+      
+      setPreferencesLoaded(true)
+    } catch (error) {
+      console.error('Error loading preferences:', error)
+      setPreferencesLoaded(true)
+    }
+  }
+
+  // ============================================
+  // EFFECT: Update system health based on refresh interval
+  // ============================================
+  useEffect(() => {
+    if (!preferencesLoaded) return
+    
     setSystemHealth(generateMockSystemHealth())
 
     const interval = setInterval(() => {
       const newData = generateMockSystemHealth()
       setSystemHealth(newData)
       console.log('Dashboard updated:', newData)
-    }, 3000)
+    }, preferences.refreshInterval)
 
     return () => clearInterval(interval)
-  }, [])
+  }, [preferences.refreshInterval, preferencesLoaded])
   
   // ============================================
-  // EFFECT: Add new alert every 5 seconds
+  // EFFECT: Add new alert every 5 seconds (only if alerts widget is visible)
   // ============================================
   useEffect(() => {
+    if (!preferencesLoaded || !preferences.showAlerts) return
+    
     // Add initial alert immediately
     const initialAlert = generateMockAlert(1)
     setAlerts([initialAlert])
@@ -112,7 +190,30 @@ export default function Dashboard() {
       clearInterval(alertInterval)
       console.log('Alert interval cleaned up')
     }
-  }, []) // Empty array = run once on mount
+  }, [preferencesLoaded, preferences.showAlerts]) // Re-run if showAlerts changes
+
+  // ============================================
+  // SHOW LOADING WHILE CHECKING AUTH
+  // ============================================
+  if (authLoading) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center ${
+        isDark ? 'bg-gray-900' : 'bg-gray-50'
+      }`}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className={`mt-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            Loading dashboard...
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render dashboard if not authenticated
+  if (!isAuthenticated) {
+    return null
+  }
 
   return (
     <div className={`min-h-screen transition-colors ${
@@ -124,26 +225,53 @@ export default function Dashboard() {
       />
 
       <main className="max-w-7xl mx-auto p-6">
-        {/* Metrics Grid */}
-        <MetricsGrid 
-          cpu={systemHealth.cpu}
-          memory={systemHealth.memory}
-          disk={systemHealth.disk}
-        />
-
-        {/* Two Column Layout: System Health + Alert Feed */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Left Column: System Health */}
-          <SystemHealthPanel 
+        {/* Metrics Grid - Only show if enabled */}
+        {preferences.showMetrics && (
+          <MetricsGrid 
             cpu={systemHealth.cpu}
             memory={systemHealth.memory}
             disk={systemHealth.disk}
-            network={systemHealth.network}
           />
+        )}
+
+        {/* Two Column Layout: System Health + Alert Feed */}
+        <div className={`grid gap-6 mb-6 ${
+          preferences.showSystemHealth && preferences.showAlerts 
+            ? 'grid-cols-1 lg:grid-cols-2' 
+            : 'grid-cols-1'
+        }`}>
+          {/* Left Column: System Health - Only show if enabled */}
+          {preferences.showSystemHealth && (
+            <SystemHealthPanel 
+              cpu={systemHealth.cpu}
+              memory={systemHealth.memory}
+              disk={systemHealth.disk}
+              network={systemHealth.network}
+            />
+          )}
           
-          {/* Right Column: Alert Feed */}
-          <AlertFeed alerts={alerts} />
+          {/* Right Column: Alert Feed - Only show if enabled */}
+          {preferences.showAlerts && (
+            <AlertFeed alerts={alerts} />
+          )}
         </div>
+
+        {/* Show message if all widgets are hidden */}
+        {!preferences.showMetrics && !preferences.showSystemHealth && !preferences.showAlerts && (
+          <div className={`text-center py-16 rounded-lg border ${
+            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
+            <svg className="w-16 h-16 mx-auto mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+            </svg>
+            <h3 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              All Widgets Hidden
+            </h3>
+            <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+              Go to Settings to enable dashboard widgets
+            </p>
+          </div>
+        )}
 
         {/* Info Box */}
         <div className={`border rounded-lg p-4 transition-colors ${
@@ -152,8 +280,9 @@ export default function Dashboard() {
             : 'bg-blue-50 border-blue-200'
         }`}>
           <p className={`text-sm ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
-            <strong>🔄 Live Updates:</strong> System metrics update every 3 seconds. 
-            New security alerts appear every 5 seconds. Open your browser console (F12) to see update logs.
+            <strong>🔄 Live Updates:</strong> System metrics update every {preferences.refreshInterval / 1000} seconds. 
+            New security alerts appear every 5 seconds. 
+            <span className="font-semibold"> Customize your dashboard in Settings!</span>
           </p>
         </div>
       </main>
