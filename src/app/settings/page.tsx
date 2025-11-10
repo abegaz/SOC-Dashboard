@@ -1,16 +1,19 @@
-// src/app/settings/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+// @ts-ignore - Grid layout doesn't have perfect types
+import GridLayout from 'react-grid-layout'
+import 'react-grid-layout/css/styles.css'
+import 'react-resizable/css/styles.css'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useAuth } from '../../contexts/AuthContext'
-import Link from 'next/link'
 
 export default function SettingsPage() {
   const router = useRouter()
   const { isDark, theme, toggleTheme } = useTheme()
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth()
+  const { user, isAuthenticated, isLoading: authLoading, updateUser } = useAuth()
   
   const [activeTab, setActiveTab] = useState<'profile' | 'dashboard' | 'preferences'>('dashboard')
   const [isSaving, setIsSaving] = useState(false)
@@ -29,6 +32,14 @@ export default function SettingsPage() {
   const [showSystemHealth, setShowSystemHealth] = useState(true)
   const [showAlerts, setShowAlerts] = useState(true)
   const [refreshInterval, setRefreshInterval] = useState(3000)
+  
+  // Layout settings
+  const [layout, setLayout] = useState([
+    { i: 'metrics', x: 0, y: 0, w: 12, h: 4, minW: 6, minH: 3 },
+    { i: 'systemHealth', x: 0, y: 4, w: 6, h: 6, minW: 4, minH: 4 },
+    { i: 'alerts', x: 6, y: 4, w: 6, h: 6, minW: 4, minH: 4 }
+  ])
+  const [isLayoutLocked, setIsLayoutLocked] = useState(false)
   
   // Redirect if not authenticated
   useEffect(() => {
@@ -62,6 +73,18 @@ export default function SettingsPage() {
           setShowSystemHealth(widgets.includes('systemHealth'))
           setShowAlerts(widgets.includes('alerts'))
         }
+        
+        // Load layout
+        if (prefs.dashboard_layout) {
+          try {
+            const savedLayout = JSON.parse(prefs.dashboard_layout)
+            if (savedLayout && savedLayout.length > 0) {
+              setLayout(savedLayout)
+            }
+          } catch (e) {
+            console.error('Error parsing dashboard_layout:', e)
+          }
+        }
       }
     } catch (error) {
       console.error('Error loading preferences:', error)
@@ -87,6 +110,7 @@ export default function SettingsPage() {
           userId: user.id,
           preferences: {
             visible_widgets: JSON.stringify(visibleWidgets),
+            dashboard_layout: JSON.stringify(layout),
             theme: theme,
             refresh_interval: refreshInterval
           }
@@ -94,7 +118,7 @@ export default function SettingsPage() {
       })
       
       if (response.ok) {
-        setSuccessMessage('Preferences saved successfully!')
+        setSuccessMessage('All preferences saved successfully!')
         setTimeout(() => setSuccessMessage(''), 3000)
       }
     } catch (error) {
@@ -102,6 +126,22 @@ export default function SettingsPage() {
     } finally {
       setIsSaving(false)
     }
+  }
+  
+  const handleLayoutChange = (newLayout: any) => {
+    if (isLayoutLocked) return
+    setLayout(newLayout)
+  }
+  
+  const resetLayout = () => {
+    const defaultLayout = [
+      { i: 'metrics', x: 0, y: 0, w: 12, h: 4, minW: 6, minH: 3 },
+      { i: 'systemHealth', x: 0, y: 4, w: 6, h: 6, minW: 4, minH: 4 },
+      { i: 'alerts', x: 6, y: 4, w: 6, h: 6, minW: 4, minH: 4 }
+    ]
+    setLayout(defaultLayout)
+    setSuccessMessage('Layout reset to default! Click "Save All Preferences" to apply.')
+    setTimeout(() => setSuccessMessage(''), 5000)
   }
   
   const updateProfile = async () => {
@@ -165,13 +205,8 @@ export default function SettingsPage() {
       setNewPassword('')
       setConfirmNewPassword('')
       
-      // Update local user data
-      const storedUser = localStorage.getItem('user')
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser)
-        parsedUser.name = profileName
-        localStorage.setItem('user', JSON.stringify(parsedUser))
-      }
+      // Update user in AuthContext (this updates everywhere automatically!)
+      updateUser({ name: profileName })
       
       setTimeout(() => setSuccessMessage(''), 3000)
     } catch (error) {
@@ -473,62 +508,180 @@ export default function SettingsPage() {
         
         {/* Dashboard Tab */}
         {activeTab === 'dashboard' && (
-          <div className={`rounded-lg p-6 ${
-            isDark ? 'bg-gray-800' : 'bg-white'
-          }`}>
-            <h2 className="text-xl font-bold mb-4">Dashboard Customization</h2>
-            <p className={`mb-6 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              Choose which widgets to display on your dashboard
-            </p>
-            
-            <div className="space-y-4">
-              {/* Metrics Widget Toggle */}
-              <label className="flex items-center justify-between cursor-pointer p-4 rounded-lg border transition-colors hover:bg-gray-700/20">
-                <div>
-                  <p className="font-medium">System Metrics</p>
-                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    CPU, Memory, and Disk usage cards
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={showMetrics}
-                  onChange={(e) => setShowMetrics(e.target.checked)}
-                  className="w-5 h-5 rounded border-gray-600 text-blue-500"
-                />
-              </label>
+          <div className="space-y-6">
+            {/* Widget Visibility Section */}
+            <div className={`rounded-lg p-6 ${
+              isDark ? 'bg-gray-800' : 'bg-white'
+            }`}>
+              <h2 className="text-xl font-bold mb-4">Widget Visibility</h2>
+              <p className={`mb-6 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                Choose which widgets to display on your dashboard
+              </p>
               
-              {/* System Health Widget Toggle */}
-              <label className="flex items-center justify-between cursor-pointer p-4 rounded-lg border transition-colors hover:bg-gray-700/20">
+              <div className="space-y-4">
+                {/* Metrics Widget Toggle */}
+                <label className="flex items-center justify-between cursor-pointer p-4 rounded-lg border transition-colors hover:bg-gray-700/20">
+                  <div>
+                    <p className="font-medium">System Metrics</p>
+                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      CPU, Memory, and Disk usage cards
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={showMetrics}
+                    onChange={(e) => setShowMetrics(e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-600 text-blue-500"
+                  />
+                </label>
+                
+                {/* System Health Widget Toggle */}
+                <label className="flex items-center justify-between cursor-pointer p-4 rounded-lg border transition-colors hover:bg-gray-700/20">
+                  <div>
+                    <p className="font-medium">System Health Panel</p>
+                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Detailed health metrics with progress bars
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={showSystemHealth}
+                    onChange={(e) => setShowSystemHealth(e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-600 text-blue-500"
+                  />
+                </label>
+                
+                {/* Alerts Widget Toggle */}
+                <label className="flex items-center justify-between cursor-pointer p-4 rounded-lg border transition-colors hover:bg-gray-700/20">
+                  <div>
+                    <p className="font-medium">Security Alerts Feed</p>
+                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Real-time security alerts and notifications
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={showAlerts}
+                    onChange={(e) => setShowAlerts(e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-600 text-blue-500"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Layout Arrangement Section */}
+            <div className={`rounded-lg p-6 ${
+              isDark ? 'bg-gray-800' : 'bg-white'
+            }`}>
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="font-medium">System Health Panel</p>
-                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Detailed health metrics with progress bars
+                  <h2 className="text-xl font-bold">Widget Layout</h2>
+                  <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Drag and resize widgets to customize your dashboard layout
                   </p>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={showSystemHealth}
-                  onChange={(e) => setShowSystemHealth(e.target.checked)}
-                  className="w-5 h-5 rounded border-gray-600 text-blue-500"
-                />
-              </label>
-              
-              {/* Alerts Widget Toggle */}
-              <label className="flex items-center justify-between cursor-pointer p-4 rounded-lg border transition-colors hover:bg-gray-700/20">
-                <div>
-                  <p className="font-medium">Security Alerts Feed</p>
-                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Real-time security alerts and notifications
-                  </p>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsLayoutLocked(!isLayoutLocked)}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
+                      isLayoutLocked
+                        ? isDark
+                          ? 'bg-green-500/20 text-green-400 border border-green-500'
+                          : 'bg-green-50 text-green-600 border border-green-200'
+                        : isDark
+                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {isLayoutLocked ? '🔒 Locked' : '🔓 Unlocked'}
+                  </button>
+                  
+                  <button
+                    onClick={resetLayout}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
+                      isDark
+                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    🔄 Reset
+                  </button>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={showAlerts}
-                  onChange={(e) => setShowAlerts(e.target.checked)}
-                  className="w-5 h-5 rounded border-gray-600 text-blue-500"
-                />
-              </label>
+              </div>
+
+              {/* Mini Dashboard Preview with Drag & Drop */}
+              <div className={`border-2 border-dashed rounded-lg p-4 ${
+                isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-300 bg-gray-50'
+              }`}>
+                <GridLayout
+                  className="layout"
+                  layout={layout}
+                  cols={12}
+                  rowHeight={20}
+                  width={800}
+                  onLayoutChange={handleLayoutChange}
+                  isDraggable={!isLayoutLocked}
+                  isResizable={!isLayoutLocked}
+                  compactType="vertical"
+                  preventCollision={false}
+                >
+                  {/* Metrics Preview */}
+                  {showMetrics && (
+                    <div key="metrics" className={`rounded border transition-colors flex items-center justify-center ${
+                      isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
+                    }`}>
+                      <div className="text-center">
+                        <p className={`text-xs font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+                          📊 System Metrics
+                        </p>
+                        {!isLayoutLocked && (
+                          <p className="text-xs text-gray-500 mt-1">Drag to move</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* System Health Preview */}
+                  {showSystemHealth && (
+                    <div key="systemHealth" className={`rounded border transition-colors flex items-center justify-center ${
+                      isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
+                    }`}>
+                      <div className="text-center">
+                        <p className={`text-xs font-bold ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                          💚 System Health
+                        </p>
+                        {!isLayoutLocked && (
+                          <p className="text-xs text-gray-500 mt-1">Drag to move</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Alerts Preview */}
+                  {showAlerts && (
+                    <div key="alerts" className={`rounded border transition-colors flex items-center justify-center ${
+                      isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
+                    }`}>
+                      <div className="text-center">
+                        <p className={`text-xs font-bold ${isDark ? 'text-red-400' : 'text-red-600'}`}>
+                          🚨 Security Alerts
+                        </p>
+                        {!isLayoutLocked && (
+                          <p className="text-xs text-gray-500 mt-1">Drag to move</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </GridLayout>
+                
+                <p className={`text-xs text-center mt-4 ${isDark ? 'text-gray-500' : 'text-gray-600'}`}>
+                  {isLayoutLocked 
+                    ? 'Click 🔓 Unlocked to rearrange widgets' 
+                    : 'Drag widgets to rearrange • Drag corners to resize'
+                  }
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -595,7 +748,7 @@ export default function SettingsPage() {
                   : 'bg-blue-500 hover:bg-blue-600 active:scale-95'
               } text-white`}
             >
-              {isSaving ? 'Saving...' : 'Save Preferences'}
+              {isSaving ? 'Saving...' : '💾 Save All Preferences'}
             </button>
             
             {successMessage && (
