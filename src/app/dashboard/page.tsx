@@ -5,6 +5,10 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useAuth } from '../../contexts/AuthContext'
+// @ts-ignore - Grid layout doesn't have perfect types
+import GridLayout from 'react-grid-layout'
+import 'react-grid-layout/css/styles.css'
+import 'react-resizable/css/styles.css'
 // From dashboard/page.tsx, we need to go up TWO levels (dashboard -> app -> src)
 // Then into components/
 import DashboardHeader from '../components/Dashboard/DashboardHeader'
@@ -73,6 +77,16 @@ export default function Dashboard() {
   })
   const [preferencesLoaded, setPreferencesLoaded] = useState(false)
   
+  // ============================================
+  // DRAG & DROP LAYOUT STATE
+  // ============================================
+  const [layout, setLayout] = useState([
+    { i: 'metrics', x: 0, y: 0, w: 12, h: 4, minW: 6, minH: 3 },
+    { i: 'systemHealth', x: 0, y: 4, w: 6, h: 6, minW: 4, minH: 4 },
+    { i: 'alerts', x: 6, y: 4, w: 6, h: 6, minW: 4, minH: 4 }
+  ])
+  const [isLayoutLocked, setIsLayoutLocked] = useState(false)
+  
   // State for system health metrics
   const [systemHealth, setSystemHealth] = useState({
     cpu: 0,
@@ -113,6 +127,18 @@ export default function Dashboard() {
             visibleWidgets = JSON.parse(prefs.visible_widgets)
           } catch (e) {
             console.error('Error parsing visible_widgets:', e)
+          }
+        }
+        
+        // Parse dashboard layout
+        if (prefs.dashboard_layout) {
+          try {
+            const savedLayout = JSON.parse(prefs.dashboard_layout)
+            if (savedLayout && savedLayout.length > 0) {
+              setLayout(savedLayout)
+            }
+          } catch (e) {
+            console.error('Error parsing dashboard_layout:', e)
           }
         }
         
@@ -193,6 +219,61 @@ export default function Dashboard() {
   }, [preferencesLoaded, preferences.showAlerts]) // Re-run if showAlerts changes
 
   // ============================================
+  // HANDLE LAYOUT CHANGE (DRAG & DROP)
+  // ============================================
+  const handleLayoutChange = (newLayout: any) => {
+    if (isLayoutLocked) return
+    
+    setLayout(newLayout)
+    console.log('📐 Layout changed:', newLayout)
+  }
+
+  // ============================================
+  // SAVE LAYOUT TO DATABASE
+  // ============================================
+  const saveLayout = async () => {
+    if (!user) return
+    
+    try {
+      const visibleWidgets = []
+      if (preferences.showMetrics) visibleWidgets.push('metrics')
+      if (preferences.showSystemHealth) visibleWidgets.push('systemHealth')
+      if (preferences.showAlerts) visibleWidgets.push('alerts')
+      
+      await fetch('/api/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          preferences: {
+            dashboard_layout: JSON.stringify(layout),
+            visible_widgets: JSON.stringify(visibleWidgets),
+            theme: isDark ? 'dark' : 'light',
+            refresh_interval: preferences.refreshInterval
+          }
+        })
+      })
+      
+      console.log('✅ Layout saved to database')
+    } catch (error) {
+      console.error('❌ Error saving layout:', error)
+    }
+  }
+
+  // ============================================
+  // RESET LAYOUT TO DEFAULT
+  // ============================================
+  const resetLayout = () => {
+    const defaultLayout = [
+      { i: 'metrics', x: 0, y: 0, w: 12, h: 4, minW: 6, minH: 3 },
+      { i: 'systemHealth', x: 0, y: 4, w: 6, h: 6, minW: 4, minH: 4 },
+      { i: 'alerts', x: 6, y: 4, w: 6, h: 6, minW: 4, minH: 4 }
+    ]
+    setLayout(defaultLayout)
+    console.log('🔄 Layout reset to default')
+  }
+
+  // ============================================
   // SHOW LOADING WHILE CHECKING AUTH
   // ============================================
   if (authLoading) {
@@ -225,36 +306,85 @@ export default function Dashboard() {
       />
 
       <main className="max-w-7xl mx-auto p-6">
-        {/* Metrics Grid - Only show if enabled */}
-        {preferences.showMetrics && (
-          <MetricsGrid 
-            cpu={systemHealth.cpu}
-            memory={systemHealth.memory}
-            disk={systemHealth.disk}
-          />
-        )}
+        {/* Draggable Grid Layout */}
+        <GridLayout
+          className="layout"
+          layout={layout}
+          cols={12}
+          rowHeight={30}
+          width={1200}
+          onLayoutChange={handleLayoutChange}
+          isDraggable={!isLayoutLocked}
+          isResizable={!isLayoutLocked}
+          compactType="vertical"
+          preventCollision={false}
+        >
+          {/* Metrics Widget */}
+          {preferences.showMetrics && (
+            <div key="metrics" className={`rounded-lg border transition-colors ${
+              isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+              <div className="p-4 h-full overflow-auto">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    System Metrics
+                  </h3>
+                  {!isLayoutLocked && (
+                    <span className="text-xs text-gray-500 cursor-move">⋮⋮</span>
+                  )}
+                </div>
+                <MetricsGrid 
+                  cpu={systemHealth.cpu}
+                  memory={systemHealth.memory}
+                  disk={systemHealth.disk}
+                />
+              </div>
+            </div>
+          )}
 
-        {/* Two Column Layout: System Health + Alert Feed */}
-        <div className={`grid gap-6 mb-6 ${
-          preferences.showSystemHealth && preferences.showAlerts 
-            ? 'grid-cols-1 lg:grid-cols-2' 
-            : 'grid-cols-1'
-        }`}>
-          {/* Left Column: System Health - Only show if enabled */}
+          {/* System Health Widget */}
           {preferences.showSystemHealth && (
-            <SystemHealthPanel 
-              cpu={systemHealth.cpu}
-              memory={systemHealth.memory}
-              disk={systemHealth.disk}
-              network={systemHealth.network}
-            />
+            <div key="systemHealth" className={`rounded-lg border transition-colors ${
+              isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+              <div className="p-4 h-full overflow-auto">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    System Health
+                  </h3>
+                  {!isLayoutLocked && (
+                    <span className="text-xs text-gray-500 cursor-move">⋮⋮</span>
+                  )}
+                </div>
+                <SystemHealthPanel 
+                  cpu={systemHealth.cpu}
+                  memory={systemHealth.memory}
+                  disk={systemHealth.disk}
+                  network={systemHealth.network}
+                />
+              </div>
+            </div>
           )}
-          
-          {/* Right Column: Alert Feed - Only show if enabled */}
+
+          {/* Alerts Widget */}
           {preferences.showAlerts && (
-            <AlertFeed alerts={alerts} />
+            <div key="alerts" className={`rounded-lg border transition-colors ${
+              isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+              <div className="p-4 h-full overflow-auto">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Security Alerts
+                  </h3>
+                  {!isLayoutLocked && (
+                    <span className="text-xs text-gray-500 cursor-move">⋮⋮</span>
+                  )}
+                </div>
+                <AlertFeed alerts={alerts} />
+              </div>
+            </div>
           )}
-        </div>
+        </GridLayout>
 
         {/* Show message if all widgets are hidden */}
         {!preferences.showMetrics && !preferences.showSystemHealth && !preferences.showAlerts && (
@@ -274,15 +404,15 @@ export default function Dashboard() {
         )}
 
         {/* Info Box */}
-        <div className={`border rounded-lg p-4 transition-colors ${
+        <div className={`mt-6 border rounded-lg p-4 transition-colors ${
           isDark 
             ? 'bg-blue-900/20 border-blue-500/30' 
             : 'bg-blue-50 border-blue-200'
         }`}>
           <p className={`text-sm ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
-            <strong>🔄 Live Updates:</strong> System metrics update every {preferences.refreshInterval / 1000} seconds. 
-            New security alerts appear every 5 seconds. 
-            <span className="font-semibold"> Customize your dashboard in Settings!</span>
+            <strong>🎨 Drag & Drop:</strong> Click "🔓 Unlocked" to drag and resize widgets. 
+            Click "💾 Save Layout" to save your custom layout. 
+            Metrics update every {preferences.refreshInterval / 1000} seconds.
           </p>
         </div>
       </main>

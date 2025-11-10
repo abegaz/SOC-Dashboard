@@ -21,6 +21,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => void
   register: (email: string, password: string, name: string) => Promise<{ success: boolean; error?: string }>
+  updateUser: (updatedUser: Partial<User>) => void  // NEW: Update user data
 }
 
 // ============================================
@@ -102,6 +103,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   // ============================================
+  // UPDATE USER FUNCTION
+  // ============================================
+  const updateUser = (updatedUser: Partial<User>) => {
+    if (!user) return
+    
+    const newUser = { ...user, ...updatedUser }
+    setUser(newUser)
+    localStorage.setItem('user', JSON.stringify(newUser))
+    console.log('✅ User data updated in context:', newUser)
+  }
+
+  // ============================================
   // REGISTER FUNCTION
   // ============================================
   const register = async (email: string, password: string, name: string) => {
@@ -134,13 +147,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // ============================================
   // CONTEXT VALUE
   // ============================================
-  const value = {
+  const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
     isLoading,
     login,
     logout,
-    register
+    register,
+    updateUser
   }
 
   return (
