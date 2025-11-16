@@ -31,13 +31,17 @@ export default function SettingsPage() {
   const [showMetrics, setShowMetrics] = useState(true)
   const [showSystemHealth, setShowSystemHealth] = useState(true)
   const [showAlerts, setShowAlerts] = useState(true)
+  const [showAnalyticsMetrics, setShowAnalyticsMetrics] = useState(true)
+  const [showTeamPerformance, setShowTeamPerformance] = useState(true)
   const [refreshInterval, setRefreshInterval] = useState(3000)
   
   // Layout settings
   const [layout, setLayout] = useState([
     { i: 'metrics', x: 0, y: 0, w: 12, h: 4, minW: 6, minH: 3 },
     { i: 'systemHealth', x: 0, y: 4, w: 6, h: 6, minW: 4, minH: 4 },
-    { i: 'alerts', x: 6, y: 4, w: 6, h: 6, minW: 4, minH: 4 }
+    { i: 'alerts', x: 6, y: 4, w: 6, h: 6, minW: 4, minH: 4 },
+    { i: 'analyticsMetrics', x: 0, y: 10, w: 12, h: 5, minW: 6, minH: 4 },
+    { i: 'teamPerformance', x: 0, y: 15, w: 12, h: 6, minW: 6, minH: 5 }
   ])
   const [isLayoutLocked, setIsLayoutLocked] = useState(false)
   
@@ -72,6 +76,8 @@ export default function SettingsPage() {
           setShowMetrics(widgets.includes('metrics'))
           setShowSystemHealth(widgets.includes('systemHealth'))
           setShowAlerts(widgets.includes('alerts'))
+          setShowAnalyticsMetrics(widgets.includes('analyticsMetrics'))
+          setShowTeamPerformance(widgets.includes('teamPerformance'))
         }
         
         // Load layout
@@ -102,6 +108,8 @@ export default function SettingsPage() {
       if (showMetrics) visibleWidgets.push('metrics')
       if (showSystemHealth) visibleWidgets.push('systemHealth')
       if (showAlerts) visibleWidgets.push('alerts')
+      if (showAnalyticsMetrics) visibleWidgets.push('analyticsMetrics')
+      if (showTeamPerformance) visibleWidgets.push('teamPerformance')
       
       const response = await fetch('/api/preferences', {
         method: 'POST',
@@ -137,7 +145,9 @@ export default function SettingsPage() {
     const defaultLayout = [
       { i: 'metrics', x: 0, y: 0, w: 12, h: 4, minW: 6, minH: 3 },
       { i: 'systemHealth', x: 0, y: 4, w: 6, h: 6, minW: 4, minH: 4 },
-      { i: 'alerts', x: 6, y: 4, w: 6, h: 6, minW: 4, minH: 4 }
+      { i: 'alerts', x: 6, y: 4, w: 6, h: 6, minW: 4, minH: 4 },
+      { i: 'analyticsMetrics', x: 0, y: 10, w: 12, h: 5, minW: 6, minH: 4 },
+      { i: 'teamPerformance', x: 0, y: 15, w: 12, h: 6, minW: 6, minH: 5 }
     ]
     setLayout(defaultLayout)
     setSuccessMessage('Layout reset to default! Click "Save All Preferences" to apply.')
@@ -566,6 +576,39 @@ export default function SettingsPage() {
                     className="w-5 h-5 rounded border-gray-600 text-blue-500"
                   />
                 </label>
+
+                                {/* Analytics Metrics Widget Toggle - ADD THIS */}
+                <label className="flex items-center justify-between cursor-pointer p-4 rounded-lg border transition-colors hover:bg-gray-700/20">
+                  <div>
+                    <p className="font-medium">Analytics Overview</p>
+                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      MTTD, MTTR, and incident statistics
+                    </p>
+                 </div>
+                 <input
+                  type="checkbox"
+                  checked={showAnalyticsMetrics}
+                  onChange={(e) => setShowAnalyticsMetrics(e.target.checked)}
+                  className="w-5 h-5 rounded border-gray-600 text-blue-500"
+                />
+              </label>
+
+                {/* Team Performance Widget Toggle - ADD THIS */}
+                <label className="flex items-center justify-between cursor-pointer p-4 rounded-lg border transition-colors hover:bg-gray-700/20">
+                <div>
+                  <p className="font-medium">Team Performance</p>
+                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Analyst metrics and comparison charts
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={showTeamPerformance}
+                  onChange={(e) => setShowTeamPerformance(e.target.checked)}
+                  className="w-5 h-5 rounded border-gray-600 text-blue-500"
+                />
+              </label>
+              
               </div>
             </div>
 
@@ -673,6 +716,39 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Analytics Metrics Preview - ADD THIS */}
+                  {showAnalyticsMetrics && (
+                    <div key="analyticsMetrics" className={`rounded border transition-colors flex items-center justify-center ${
+                      isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
+                    }`}>
+                      <div className="text-center">
+                        <p className={`text-xs font-bold ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
+                          📊 Analytics Overview
+                        </p>
+                        {!isLayoutLocked && (
+                          <p className="text-xs text-gray-500 mt-1">Drag to move</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Team Performance Preview - ADD THIS */}
+                  {showTeamPerformance && (
+                    <div key="teamPerformance" className={`rounded border transition-colors flex items-center justify-center ${
+                     isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
+                    }`}>
+                      <div className="text-center">
+                        <p className={`text-xs font-bold ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                         👥 Team Performance
+                        </p>
+                        {!isLayoutLocked && (
+                          <p className="text-xs text-gray-500 mt-1">Drag to move</p>
+                        )}
+                      </div>
+                   </div>
+                  )}
+
                 </GridLayout>
                 
                 <p className={`text-xs text-center mt-4 ${isDark ? 'text-gray-500' : 'text-gray-600'}`}>

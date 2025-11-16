@@ -15,6 +15,8 @@ import DashboardHeader from '../components/Dashboard/DashboardHeader'
 import MetricsGrid from '../components/Dashboard/MetricsGrid'
 import SystemHealthPanel from '../components/Dashboard/SystemHealthPanel'
 import AlertFeed, { Alert } from '../components/Dashboard/AlertFeed'
+import AnalyticsMetrics from '../components/Analytics/AnalyticsMetrics'
+import TeamPerformance from '../components/Analytics/TeamPerformance'
 
 
 // ============================================
@@ -73,6 +75,8 @@ export default function Dashboard() {
     showMetrics: true,
     showSystemHealth: true,
     showAlerts: true,
+    showAnalyticsMetrics: true,
+    showTeamPerformance: true,
     refreshInterval: 3000
   })
   const [preferencesLoaded, setPreferencesLoaded] = useState(false)
@@ -83,7 +87,9 @@ export default function Dashboard() {
   const [layout, setLayout] = useState([
     { i: 'metrics', x: 0, y: 0, w: 12, h: 4, minW: 6, minH: 3 },
     { i: 'systemHealth', x: 0, y: 4, w: 6, h: 6, minW: 4, minH: 4 },
-    { i: 'alerts', x: 6, y: 4, w: 6, h: 6, minW: 4, minH: 4 }
+    { i: 'alerts', x: 6, y: 4, w: 6, h: 6, minW: 4, minH: 4 },
+    { i: 'analyticsMetrics', x: 0, y: 10, w: 12, h: 5, minW: 6, minH: 4 },
+    { i: 'teamPerformance', x: 0, y: 15, w: 12, h: 6, minW: 6, minH: 5 }
   ])
   const [isLayoutLocked, setIsLayoutLocked] = useState(false)
   
@@ -121,7 +127,7 @@ export default function Dashboard() {
         const prefs = data.preferences
         
         // Parse visible widgets
-        let visibleWidgets = ['metrics', 'systemHealth', 'alerts']
+        let visibleWidgets = ['metrics', 'systemHealth', 'alerts', 'analyticsMetrics', 'teamPerformance']
         if (prefs.visible_widgets) {
           try {
             visibleWidgets = JSON.parse(prefs.visible_widgets)
@@ -146,6 +152,8 @@ export default function Dashboard() {
           showMetrics: visibleWidgets.includes('metrics'),
           showSystemHealth: visibleWidgets.includes('systemHealth'),
           showAlerts: visibleWidgets.includes('alerts'),
+          showAnalyticsMetrics: visibleWidgets.includes('analyticsMetrics'),
+          showTeamPerformance: visibleWidgets.includes('teamPerformance'),
           refreshInterval: prefs.refresh_interval || 3000
         })
         
@@ -239,6 +247,8 @@ export default function Dashboard() {
       if (preferences.showMetrics) visibleWidgets.push('metrics')
       if (preferences.showSystemHealth) visibleWidgets.push('systemHealth')
       if (preferences.showAlerts) visibleWidgets.push('alerts')
+      if (preferences.showAnalyticsMetrics) visibleWidgets.push('analyticsMetrics')
+      if (preferences.showTeamPerformance) visibleWidgets.push('teamPerformance')
       
       await fetch('/api/preferences', {
         method: 'POST',
@@ -267,7 +277,9 @@ export default function Dashboard() {
     const defaultLayout = [
       { i: 'metrics', x: 0, y: 0, w: 12, h: 4, minW: 6, minH: 3 },
       { i: 'systemHealth', x: 0, y: 4, w: 6, h: 6, minW: 4, minH: 4 },
-      { i: 'alerts', x: 6, y: 4, w: 6, h: 6, minW: 4, minH: 4 }
+      { i: 'alerts', x: 6, y: 4, w: 6, h: 6, minW: 4, minH: 4 },
+      { i: 'analyticsMetrics', x: 0, y: 10, w: 12, h: 5, minW: 6, minH: 4 },
+      { i: 'teamPerformance', x: 0, y: 15, w: 12, h: 6, minW: 6, minH: 5 }
     ]
     setLayout(defaultLayout)
     console.log('🔄 Layout reset to default')
@@ -384,10 +396,48 @@ export default function Dashboard() {
               </div>
             </div>
           )}
+
+          {/* Analytics Metrics Widget */}
+          {preferences.showAnalyticsMetrics && (
+            <div key="analyticsMetrics" className={`rounded-lg border transition-colors ${
+              isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+              <div className="p-4 h-full overflow-auto">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Analytics Overview
+                  </h3>
+                  {!isLayoutLocked && (
+                    <span className="text-xs text-gray-500 cursor-move">⋮⋮</span>
+                  )}
+                </div>
+                <AnalyticsMetrics />
+              </div>
+            </div>
+          )}
+
+          {/* Team Performance Widget */}
+          {preferences.showTeamPerformance && (
+            <div key="teamPerformance" className={`rounded-lg border transition-colors ${
+              isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+              <div className="p-4 h-full overflow-auto">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Team Performance
+                  </h3>
+                  {!isLayoutLocked && (
+                    <span className="text-xs text-gray-500 cursor-move">⋮⋮</span>
+                  )}
+                </div>
+                <TeamPerformance />
+              </div>
+            </div>
+          )}
         </GridLayout>
 
         {/* Show message if all widgets are hidden */}
-        {!preferences.showMetrics && !preferences.showSystemHealth && !preferences.showAlerts && (
+        {!preferences.showMetrics && !preferences.showSystemHealth && !preferences.showAlerts && !preferences.showAnalyticsMetrics && !preferences.showTeamPerformance && (
           <div className={`text-center py-16 rounded-lg border ${
             isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
           }`}>
@@ -410,8 +460,7 @@ export default function Dashboard() {
             : 'bg-blue-50 border-blue-200'
         }`}>
           <p className={`text-sm ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
-            <strong>🎨 Drag & Drop:</strong> Click "🔓 Unlocked" to drag and resize widgets. 
-            Click "💾 Save Layout" to save your custom layout. 
+            <strong>Note: </strong> 
             Metrics update every {preferences.refreshInterval / 1000} seconds.
           </p>
         </div>
