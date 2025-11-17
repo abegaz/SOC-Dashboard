@@ -1,6 +1,5 @@
 // src/app/dashboard/page.tsx
 'use client'
-
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTheme } from '../../contexts/ThemeContext'
@@ -9,15 +8,13 @@ import { useAuth } from '../../contexts/AuthContext'
 import GridLayout from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
-// From dashboard/page.tsx, we need to go up TWO levels (dashboard -> app -> src)
-// Then into components/
+
 import DashboardHeader from '../components/Dashboard/DashboardHeader'
 import MetricsGrid from '../components/Dashboard/MetricsGrid'
 import SystemHealthPanel from '../components/Dashboard/SystemHealthPanel'
 import AlertFeed, { Alert } from '../components/Dashboard/AlertFeed'
 import AnalyticsMetrics from '../components/Analytics/AnalyticsMetrics'
 import TeamPerformance from '../components/Analytics/TeamPerformance'
-
 
 // ============================================
 // MOCK DATA GENERATOR
@@ -57,6 +54,18 @@ export default function Dashboard() {
   const { isDark } = useTheme()
   const { isAuthenticated, isLoading: authLoading, user } = useAuth()
   const router = useRouter()
+  
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(false)
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
   
   // ============================================
   // PROTECTED ROUTE - CHECK AUTHENTICATION
@@ -104,9 +113,8 @@ export default function Dashboard() {
   // ============================================
   // STATE FOR ALERTS
   // ============================================
-  // This will hold our array of alerts
   const [alerts, setAlerts] = useState<Alert[]>([])
-
+  
   // ============================================
   // LOAD USER PREFERENCES
   // ============================================
@@ -115,7 +123,7 @@ export default function Dashboard() {
       loadUserPreferences()
     }
   }, [user])
-
+  
   const loadUserPreferences = async () => {
     if (!user) return
     
@@ -126,7 +134,6 @@ export default function Dashboard() {
       if (data.preferences) {
         const prefs = data.preferences
         
-        // Parse visible widgets
         let visibleWidgets = ['metrics', 'systemHealth', 'alerts', 'analyticsMetrics', 'teamPerformance']
         if (prefs.visible_widgets) {
           try {
@@ -136,7 +143,6 @@ export default function Dashboard() {
           }
         }
         
-        // Parse dashboard layout
         if (prefs.dashboard_layout) {
           try {
             const savedLayout = JSON.parse(prefs.dashboard_layout)
@@ -156,13 +162,6 @@ export default function Dashboard() {
           showTeamPerformance: visibleWidgets.includes('teamPerformance'),
           refreshInterval: prefs.refresh_interval || 3000
         })
-        
-        console.log('✅ Preferences loaded:', {
-          showMetrics: visibleWidgets.includes('metrics'),
-          showSystemHealth: visibleWidgets.includes('systemHealth'),
-          showAlerts: visibleWidgets.includes('alerts'),
-          refreshInterval: prefs.refresh_interval || 3000
-        })
       }
       
       setPreferencesLoaded(true)
@@ -171,7 +170,7 @@ export default function Dashboard() {
       setPreferencesLoaded(true)
     }
   }
-
+  
   // ============================================
   // EFFECT: Update system health based on refresh interval
   // ============================================
@@ -179,114 +178,49 @@ export default function Dashboard() {
     if (!preferencesLoaded) return
     
     setSystemHealth(generateMockSystemHealth())
-
     const interval = setInterval(() => {
       const newData = generateMockSystemHealth()
       setSystemHealth(newData)
       console.log('Dashboard updated:', newData)
     }, preferences.refreshInterval)
-
     return () => clearInterval(interval)
   }, [preferences.refreshInterval, preferencesLoaded])
   
   // ============================================
-  // EFFECT: Add new alert every 5 seconds (only if alerts widget is visible)
+  // EFFECT: Add new alert every 5 seconds
   // ============================================
   useEffect(() => {
     if (!preferencesLoaded || !preferences.showAlerts) return
     
-    // Add initial alert immediately
     const initialAlert = generateMockAlert(1)
     setAlerts([initialAlert])
     
-    // Keep track of the next ID to use
     let nextId = 2
     
-    // Add new alert every 5 seconds
     const alertInterval = setInterval(() => {
-      // Generate new alert with current ID
       const newAlert = generateMockAlert(nextId)
-      
-      // Update alerts: add new one at beginning, keep only first 8
       setAlerts((prevAlerts) => {
         const updatedAlerts = [newAlert, ...prevAlerts]
-        return updatedAlerts.slice(0, 8) // Keep only first 8
+        return updatedAlerts.slice(0, 8)
       })
-      
-      console.log('New alert generated:', newAlert)
-      
-      // Increment ID for next alert
       nextId = nextId + 1
-    }, 5000) // 5000ms = 5 seconds
+    }, 5000)
     
-    // Cleanup function: stop the interval when component unmounts
     return () => {
       clearInterval(alertInterval)
-      console.log('Alert interval cleaned up')
     }
-  }, [preferencesLoaded, preferences.showAlerts]) // Re-run if showAlerts changes
-
+  }, [preferencesLoaded, preferences.showAlerts])
+  
   // ============================================
   // HANDLE LAYOUT CHANGE (DRAG & DROP)
   // ============================================
   const handleLayoutChange = (newLayout: any) => {
     if (isLayoutLocked) return
-    
     setLayout(newLayout)
-    console.log('📐 Layout changed:', newLayout)
   }
-
+  
   // ============================================
-  // SAVE LAYOUT TO DATABASE
-  // ============================================
-  const saveLayout = async () => {
-    if (!user) return
-    
-    try {
-      const visibleWidgets = []
-      if (preferences.showMetrics) visibleWidgets.push('metrics')
-      if (preferences.showSystemHealth) visibleWidgets.push('systemHealth')
-      if (preferences.showAlerts) visibleWidgets.push('alerts')
-      if (preferences.showAnalyticsMetrics) visibleWidgets.push('analyticsMetrics')
-      if (preferences.showTeamPerformance) visibleWidgets.push('teamPerformance')
-      
-      await fetch('/api/preferences', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          preferences: {
-            dashboard_layout: JSON.stringify(layout),
-            visible_widgets: JSON.stringify(visibleWidgets),
-            theme: isDark ? 'dark' : 'light',
-            refresh_interval: preferences.refreshInterval
-          }
-        })
-      })
-      
-      console.log('✅ Layout saved to database')
-    } catch (error) {
-      console.error('❌ Error saving layout:', error)
-    }
-  }
-
-  // ============================================
-  // RESET LAYOUT TO DEFAULT
-  // ============================================
-  const resetLayout = () => {
-    const defaultLayout = [
-      { i: 'metrics', x: 0, y: 0, w: 12, h: 4, minW: 6, minH: 3 },
-      { i: 'systemHealth', x: 0, y: 4, w: 6, h: 6, minW: 4, minH: 4 },
-      { i: 'alerts', x: 6, y: 4, w: 6, h: 6, minW: 4, minH: 4 },
-      { i: 'analyticsMetrics', x: 0, y: 10, w: 12, h: 5, minW: 6, minH: 4 },
-      { i: 'teamPerformance', x: 0, y: 15, w: 12, h: 6, minW: 6, minH: 5 }
-    ]
-    setLayout(defaultLayout)
-    console.log('🔄 Layout reset to default')
-  }
-
-  // ============================================
-  // SHOW LOADING WHILE CHECKING AUTH
+  // LOADING STATE
   // ============================================
   if (authLoading) {
     return (
@@ -302,12 +236,122 @@ export default function Dashboard() {
       </div>
     )
   }
-
-  // Don't render dashboard if not authenticated
+  
   if (!isAuthenticated) {
     return null
   }
-
+  
+  // ============================================
+  // MOBILE VIEW - SIMPLE STACK LAYOUT
+  // ============================================
+  if (isMobile) {
+    return (
+      <div className={`min-h-screen transition-colors ${
+        isDark ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
+      }`}>
+        <DashboardHeader 
+          title="Security Dashboard"
+          subtitle="Real-time monitoring"
+        />
+        <main className="p-3 space-y-4">
+          {/* Metrics Widget */}
+          {preferences.showMetrics && (
+            <div className={`rounded-lg border transition-colors ${
+              isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+              <div className="p-3">
+                <h3 className={`font-bold mb-3 text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  System Metrics
+                </h3>
+                <MetricsGrid 
+                  cpu={systemHealth.cpu}
+                  memory={systemHealth.memory}
+                  disk={systemHealth.disk}
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* System Health Widget */}
+          {preferences.showSystemHealth && (
+            <div className={`rounded-lg border transition-colors ${
+              isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+              <div className="p-3">
+                <h3 className={`font-bold mb-3 text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  System Health
+                </h3>
+                <SystemHealthPanel 
+                  cpu={systemHealth.cpu}
+                  memory={systemHealth.memory}
+                  disk={systemHealth.disk}
+                  network={systemHealth.network}
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* Alerts Widget */}
+          {preferences.showAlerts && (
+            <div className={`rounded-lg border transition-colors ${
+              isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+              <div className="p-3">
+                <h3 className={`font-bold mb-3 text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Security Alerts
+                </h3>
+                <AlertFeed alerts={alerts} />
+              </div>
+            </div>
+          )}
+          
+          {/* Analytics Metrics Widget */}
+          {preferences.showAnalyticsMetrics && (
+            <div className={`rounded-lg border transition-colors ${
+              isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+              <div className="p-3">
+                <h3 className={`font-bold mb-3 text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Analytics Overview
+                </h3>
+                <AnalyticsMetrics />
+              </div>
+            </div>
+          )}
+          
+          {/* Team Performance Widget */}
+          {preferences.showTeamPerformance && (
+            <div className={`rounded-lg border transition-colors ${
+              isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+              <div className="p-3">
+                <h3 className={`font-bold mb-3 text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Team Performance
+                </h3>
+                <TeamPerformance />
+              </div>
+            </div>
+          )}
+          
+          {/* Info Box */}
+          <div className={`border rounded-lg p-3 transition-colors ${
+            isDark 
+              ? 'bg-blue-900/20 border-blue-500/30' 
+              : 'bg-blue-50 border-blue-200'
+          }`}>
+            <p className={`text-xs ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
+              <strong>Note: </strong> 
+              Metrics update every {preferences.refreshInterval / 1000}s.
+            </p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+  
+  // ============================================
+  // DESKTOP VIEW - GRID LAYOUT
+  // ============================================
   return (
     <div className={`min-h-screen transition-colors ${
       isDark ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
@@ -316,9 +360,7 @@ export default function Dashboard() {
         title="Security Operations Dashboard"
         subtitle="Real-time monitoring and alerts"
       />
-
       <main className="max-w-7xl mx-auto p-6">
-        {/* Draggable Grid Layout */}
         <GridLayout
           className="layout"
           layout={layout}
@@ -353,7 +395,7 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-
+          
           {/* System Health Widget */}
           {preferences.showSystemHealth && (
             <div key="systemHealth" className={`rounded-lg border transition-colors ${
@@ -377,7 +419,7 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-
+          
           {/* Alerts Widget */}
           {preferences.showAlerts && (
             <div key="alerts" className={`rounded-lg border transition-colors ${
@@ -396,7 +438,7 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-
+          
           {/* Analytics Metrics Widget */}
           {preferences.showAnalyticsMetrics && (
             <div key="analyticsMetrics" className={`rounded-lg border transition-colors ${
@@ -415,7 +457,7 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-
+          
           {/* Team Performance Widget */}
           {preferences.showTeamPerformance && (
             <div key="teamPerformance" className={`rounded-lg border transition-colors ${
@@ -435,7 +477,7 @@ export default function Dashboard() {
             </div>
           )}
         </GridLayout>
-
+        
         {/* Show message if all widgets are hidden */}
         {!preferences.showMetrics && !preferences.showSystemHealth && !preferences.showAlerts && !preferences.showAnalyticsMetrics && !preferences.showTeamPerformance && (
           <div className={`text-center py-16 rounded-lg border ${
@@ -452,7 +494,7 @@ export default function Dashboard() {
             </p>
           </div>
         )}
-
+        
         {/* Info Box */}
         <div className={`mt-6 border rounded-lg p-4 transition-colors ${
           isDark 
