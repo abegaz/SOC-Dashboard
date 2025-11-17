@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   description: 'Real-time security monitoring and alerts',
 }
 
-export const viewport = {
+export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
