@@ -11,6 +11,12 @@ export const metadata: Metadata = {
   description: 'Real-time security monitoring and alerts',
 }
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+}
+
 export default function RootLayout({
   children,
 }: {
@@ -28,3 +34,4 @@ export default function RootLayout({
     </html>
   )
 }
+
