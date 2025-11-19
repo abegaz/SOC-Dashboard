@@ -56,7 +56,13 @@ export default function Dashboard() {
   const router = useRouter()
   
   // Mobile detection
-  const [isMobile, setIsMobile] = useState(false)
+ // Mobile detection - Initialize correctly
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 768
+    }
+    return false
+  })
   
   useEffect(() => {
     const checkMobile = () => {
@@ -348,18 +354,6 @@ export default function Dashboard() {
       </div>
     )
   }
-  // ============================================
-  // Remove Drag and Drop for Mobile
-  // ============================================
-  // Mobile: Simple stacked divs (no grid at all)
-  if (isMobile) {
-    return (
-      <main className="p-3 space-y-4">
-        {/* Just regular divs that stack */}
-      </main>
-    )
-  }
-
 
   // ============================================
   // DESKTOP VIEW - GRID LAYOUT
