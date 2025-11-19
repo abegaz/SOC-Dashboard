@@ -352,14 +352,6 @@ export default function Dashboard() {
   // Remove Drag and Drop for Mobile
   // ============================================
 
-  // Mobile: Simple stacked divs (no grid at all)
-  if (isMobile) {
-    return (
-      <main className="p-3 space-y-4">
-        {/* Just regular divs that stack */}
-      </main>
-    )
-  }
 
 // Desktop: Grid with drag-and-drop
 return (
