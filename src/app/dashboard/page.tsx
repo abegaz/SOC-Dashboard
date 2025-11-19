@@ -360,6 +360,20 @@ export default function Dashboard() {
         title="Security Operations Dashboard"
         subtitle="Real-time monitoring and alerts"
       />
+      <div className="max-w-7xl mx-auto px-6 pb-4">
+  <div className="flex gap-3">
+    <button
+      onClick={() => router.push('/handoff')}
+      className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
+        isDark 
+          ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
+          : 'bg-indigo-600 text-white hover:bg-indigo-700'
+      }`}
+    >
+      📋 Shift Handoff
+    </button>
+  </div>
+</div>
       <main className="max-w-7xl mx-auto p-6">
         <GridLayout
           className="layout"
