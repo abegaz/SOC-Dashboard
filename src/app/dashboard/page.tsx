@@ -54,10 +54,16 @@ export default function Dashboard() {
   const { isDark } = useTheme()
   const { isAuthenticated, isLoading: authLoading, user } = useAuth()
   const router = useRouter()
-  
+
   // Mobile detection
   const [isMobile, setIsMobile] = useState(false)
-  
+
+
+
+
+
+
+
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
@@ -66,7 +72,7 @@ export default function Dashboard() {
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
-  
+
   // ============================================
   // PROTECTED ROUTE - CHECK AUTHENTICATION
   // ============================================
@@ -76,7 +82,7 @@ export default function Dashboard() {
       router.push('/')
     }
   }, [isAuthenticated, authLoading, router])
-  
+
   // ============================================
   // USER PREFERENCES STATE
   // ============================================
@@ -89,7 +95,7 @@ export default function Dashboard() {
     refreshInterval: 3000
   })
   const [preferencesLoaded, setPreferencesLoaded] = useState(false)
-  
+
   // ============================================
   // DRAG & DROP LAYOUT STATE
   // ============================================
@@ -101,7 +107,7 @@ export default function Dashboard() {
     { i: 'teamPerformance', x: 0, y: 15, w: 12, h: 6, minW: 6, minH: 5 }
   ])
   const [isLayoutLocked, setIsLayoutLocked] = useState(false)
-  
+
   // State for system health metrics
   const [systemHealth, setSystemHealth] = useState({
     cpu: 0,
@@ -109,12 +115,12 @@ export default function Dashboard() {
     disk: 0,
     network: 'healthy'
   })
-  
+
   // ============================================
   // STATE FOR ALERTS
   // ============================================
   const [alerts, setAlerts] = useState<Alert[]>([])
-  
+
   // ============================================
   // LOAD USER PREFERENCES
   // ============================================
@@ -123,17 +129,17 @@ export default function Dashboard() {
       loadUserPreferences()
     }
   }, [user])
-  
+
   const loadUserPreferences = async () => {
     if (!user) return
-    
+
     try {
       const response = await fetch(`/api/preferences?userId=${user.id}`)
       const data = await response.json()
-      
+
       if (data.preferences) {
         const prefs = data.preferences
-        
+
         let visibleWidgets = ['metrics', 'systemHealth', 'alerts', 'analyticsMetrics', 'teamPerformance']
         if (prefs.visible_widgets) {
           try {
@@ -142,7 +148,7 @@ export default function Dashboard() {
             console.error('Error parsing visible_widgets:', e)
           }
         }
-        
+
         if (prefs.dashboard_layout) {
           try {
             const savedLayout = JSON.parse(prefs.dashboard_layout)
@@ -153,7 +159,7 @@ export default function Dashboard() {
             console.error('Error parsing dashboard_layout:', e)
           }
         }
-        
+
         setPreferences({
           showMetrics: visibleWidgets.includes('metrics'),
           showSystemHealth: visibleWidgets.includes('systemHealth'),
@@ -163,20 +169,20 @@ export default function Dashboard() {
           refreshInterval: prefs.refresh_interval || 3000
         })
       }
-      
+
       setPreferencesLoaded(true)
     } catch (error) {
       console.error('Error loading preferences:', error)
       setPreferencesLoaded(true)
     }
   }
-  
+
   // ============================================
   // EFFECT: Update system health based on refresh interval
   // ============================================
   useEffect(() => {
     if (!preferencesLoaded) return
-    
+
     setSystemHealth(generateMockSystemHealth())
     const interval = setInterval(() => {
       const newData = generateMockSystemHealth()
@@ -185,18 +191,18 @@ export default function Dashboard() {
     }, preferences.refreshInterval)
     return () => clearInterval(interval)
   }, [preferences.refreshInterval, preferencesLoaded])
-  
+
   // ============================================
   // EFFECT: Add new alert every 5 seconds
   // ============================================
   useEffect(() => {
     if (!preferencesLoaded || !preferences.showAlerts) return
-    
+
     const initialAlert = generateMockAlert(1)
     setAlerts([initialAlert])
-    
+
     let nextId = 2
-    
+
     const alertInterval = setInterval(() => {
       const newAlert = generateMockAlert(nextId)
       setAlerts((prevAlerts) => {
@@ -205,12 +211,12 @@ export default function Dashboard() {
       })
       nextId = nextId + 1
     }, 5000)
-    
+
     return () => {
       clearInterval(alertInterval)
     }
   }, [preferencesLoaded, preferences.showAlerts])
-  
+
   // ============================================
   // HANDLE LAYOUT CHANGE (DRAG & DROP)
   // ============================================
@@ -218,7 +224,7 @@ export default function Dashboard() {
     if (isLayoutLocked) return
     setLayout(newLayout)
   }
-  
+
   // ============================================
   // LOADING STATE
   // ============================================
@@ -236,11 +242,11 @@ export default function Dashboard() {
       </div>
     )
   }
-  
+
   if (!isAuthenticated) {
     return null
   }
-  
+
   // ============================================
   // MOBILE VIEW - SIMPLE STACK LAYOUT
   // ============================================
@@ -271,7 +277,7 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-          
+
           {/* System Health Widget */}
           {preferences.showSystemHealth && (
             <div className={`rounded-lg border transition-colors ${
@@ -290,7 +296,7 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-          
+
           {/* Alerts Widget */}
           {preferences.showAlerts && (
             <div className={`rounded-lg border transition-colors ${
@@ -304,7 +310,7 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-          
+
           {/* Analytics Metrics Widget */}
           {preferences.showAnalyticsMetrics && (
             <div className={`rounded-lg border transition-colors ${
@@ -318,7 +324,7 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-          
+
           {/* Team Performance Widget */}
           {preferences.showTeamPerformance && (
             <div className={`rounded-lg border transition-colors ${
@@ -332,7 +338,7 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-          
+
           {/* Info Box */}
           <div className={`border rounded-lg p-3 transition-colors ${
             isDark 
@@ -348,7 +354,19 @@ export default function Dashboard() {
       </div>
     )
   }
-  
+  // ============================================
+  // Remove Drag and Drop for Mobile
+  // ============================================
+  // Mobile: Simple stacked divs (no grid at all)
+  if (isMobile) {
+    return (
+      <main className="p-3 space-y-4">
+        {/* Just regular divs that stack */}
+      </main>
+    )
+  }
+
+
   // ============================================
   // DESKTOP VIEW - GRID LAYOUT
   // ============================================
@@ -409,7 +427,7 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-          
+
           {/* System Health Widget */}
           {preferences.showSystemHealth && (
             <div key="systemHealth" className={`rounded-lg border transition-colors ${
@@ -433,7 +451,7 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-          
+
           {/* Alerts Widget */}
           {preferences.showAlerts && (
             <div key="alerts" className={`rounded-lg border transition-colors ${
@@ -452,7 +470,7 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-          
+
           {/* Analytics Metrics Widget */}
           {preferences.showAnalyticsMetrics && (
             <div key="analyticsMetrics" className={`rounded-lg border transition-colors ${
@@ -471,7 +489,7 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-          
+
           {/* Team Performance Widget */}
           {preferences.showTeamPerformance && (
             <div key="teamPerformance" className={`rounded-lg border transition-colors ${
@@ -491,7 +509,7 @@ export default function Dashboard() {
             </div>
           )}
         </GridLayout>
-        
+
         {/* Show message if all widgets are hidden */}
         {!preferences.showMetrics && !preferences.showSystemHealth && !preferences.showAlerts && !preferences.showAnalyticsMetrics && !preferences.showTeamPerformance && (
           <div className={`text-center py-16 rounded-lg border ${
@@ -508,7 +526,7 @@ export default function Dashboard() {
             </p>
           </div>
         )}
-        
+
         {/* Info Box */}
         <div className={`mt-6 border rounded-lg p-4 transition-colors ${
           isDark 
