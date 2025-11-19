@@ -353,13 +353,6 @@ export default function Dashboard() {
   // ============================================
 
 
-// Desktop: Grid with drag-and-drop
-return (
-  <GridLayout isDraggable={!isLayoutLocked} ...>
-    {/* Draggable grid */}
-  </GridLayout>
-)
-  
   // ============================================
   // DESKTOP VIEW - GRID LAYOUT
   // ============================================
